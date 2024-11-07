@@ -1,0 +1,134 @@
+
+mixed-port: 7890
+ipv6: true
+allow-lan: true
+unified-delay: false
+tcp-concurrent: true
+external-controller: 127.0.0.1:9090
+external-ui: ui
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+
+geodata-mode: true
+geox-url:
+  geoip: "https://mirror.ghproxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat"
+  geosite: "https://mirror.ghproxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+  mmdb: "https://mirror.ghproxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country-lite.mmdb"
+  asn: "https://mirror.ghproxy.com/https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb"
+
+find-process-mode: strict
+global-client-fingerprint: chrome
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack:
+    - "any:53"
+    - "tcp://any:53"
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
+
+dns:
+  enable: true
+  ipv6: true
+  respect-rules: true
+  enhanced-mode: fake-ip
+  fake-ip-filter:
+    - "*"
+    - "+.lan"
+    - "+.local"
+    - "+.market.xiaomi.com"
+  nameserver:
+    - https://120.53.53.53/dns-query
+    - https://223.5.5.5/dns-query
+  proxy-server-nameserver:
+    - https://120.53.53.53/dns-query
+    - https://223.5.5.5/dns-query
+  nameserver-policy:
+    "geosite:cn,private":
+      - https://120.53.53.53/dns-query
+      - https://223.5.5.5/dns-query
+    "geosite:geolocation-!cn":
+      - "https://dns.cloudflare.com/dns-query"
+      - "https://dns.google/dns-query"
+
+######### 锚点 start #######
+# 策略组相关
+pr: &pr {type: select, proxies: [故障转移,自动选择], include-all: true}
+
+pt: &pt {type: select, proxies: [DIRECT,自动选择], include-all: true}
+
+# 这里是订阅更新和延迟测试相关的
+p: &p {type: http, interval: 3600, health-check: {enable: true, url: https://www.gstatic.com/generate_204, interval: 300}, filter: "^(?!.*(工单|以下|套餐|回国|国内直连|国际|官网|流量|校园|重置|电信|订阅|80|443|节点名))"}
+
+# 远程规则集
+d: &d {type: http, behavior: classical, interval: 86400, format: text}
+######### 锚点 end #######
+
+# url 里填写自己的订阅,名称不能重复
+proxy-providers:
+
+  NieRCloud: 
+    <<: *p
+    override:
+      additional-prefix: "【Nie】"
+    url: "订阅链接"
+  
+
+proxy-groups:
+  - {name: 全球代理, type: select, proxies: [故障转移,自动选择], include-all: true, icon: "https://raw.githubusercontent.com/NB921/picture/main/Golbal.png"}
+  - {name: 自动选择, type: url-test, url: 'https://cp.cloudflare.com', include-all: true, tolerance: 10, filter: "^(?!.*(1.5x|2x|3x)).*(香港|台湾|日本|美国|新加坡)", icon: "https://raw.githubusercontent.com/NB921/picture/main/Sdxz.png"}
+  - {name: 故障转移, type: fallback, url: 'https://cp.cloudflare.com', interval: 300, include-all: true, filter: "^(?!.*(1.5x|2x|3x)).*(香港|台湾|日本|美国|新加坡)", icon: "https://raw.githubusercontent.com/NB921/picture/main/Health.png"}
+  - {name: 油管服务, <<: *pr, icon: "https://raw.githubusercontent.com/NB921/picture/main/Youtube1.png"}
+  - {name: 电报服务, type: url-test, url: 'https://cp.cloudflare.com', proxies: [全球代理], include-all: true, tolerance: 10, filter: 新加坡, icon: "https://raw.githubusercontent.com/NB921/picture/main/Telegram.png"}
+  - {name: Paypal, type: select, include-all: true, icon: "https://raw.githubusercontent.com/NB921/picture/main/Paypal.png"}
+  - {name: OpenAi, type: select, proxies: [故障转移], include-all: true, filter: "(新加坡|台湾|日本|美国)", icon: "https://raw.githubusercontent.com/NB921/picture/main/chatgpt.png"}
+  - {name: WinkTV, <<: *pt, icon: "https://raw.githubusercontent.com/NB921/picture/main/miss_lee.png"}
+  - {name: PikPak下载, <<: *pt, icon: "https://raw.githubusercontent.com/NB921/picture/main/pikpak.png"}
+  - {name: 漏网之鱼, type: select, proxies: [全球代理,DIRECT], icon: "https://raw.githubusercontent.com/NB921/picture/main/Yu.png"}
+
+rule-providers:
+  video: {<<: *d, url: https://raw.githubusercontent.com/NB921/rule/main/surge/video.list}
+  pikpak: {<<: *d, url: https://raw.githubusercontent.com/NB921/rule/main/surge/pikpak.list}
+  WinkTV: {<<: *d, url: https://raw.githubusercontent.com/NB921/rule/main/surge/winktv.list}
+
+rules:
+  - GEOIP,lan,DIRECT,no-resolve
+  - RULE-SET,video,DIRECT
+  - RULE-SET,pikpak,全球代理
+  - RULE-SET,WinkTV,WinkTV
+  - DOMAIN-KEYWORD,pikpak,PikPak下载
+  - DOMAIN-SUFFIX,xn--ngstr-lra8j.com,全球代理
+  - DOMAIN-SUFFIX,googleapis.cn,全球代理
+  - DOMAIN-SUFFIX,themoviedb.org,全球代理
+  - DOMAIN-SUFFIX,tmdb.org,全球代理
+  - GEOSITE,telegram,电报服务
+  - GEOSITE,paypal,Paypal
+  - GEOSITE,github,全球代理
+  - GEOSITE,telegram,全球代理
+  - GEOSITE,openai,OpenAi
+  - GEOSITE,youtube,油管服务
+  - GEOSITE,CN,DIRECT
+  - GEOSITE,geolocation-!cn,全球代理
+
+  - GEOIP,telegram,电报服务
+  - GEOIP,CN,DIRECT
+  - MATCH,漏网之鱼
